@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>攤位採買清單｜手機友善</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: #121a2c;
+      --text: #eaf2ff;
+      --muted: #aab7cf;
+      --accent: #0ea5e9;
+      --ok: #10b981;
+      --radius: 16px;
+      --shadow: 0 6px 18px rgba(0, 0, 0, .35);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f9fc;
+        --card: #fff;
+        --text: #0f172a;
+        --muted: #465268;
+        --accent: #0284c7;
+        --shadow: 0 6px 18px rgba(2, 8, 23, .08);
+      }
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif
+    }
+
+    /* Grid：手機1欄、平板2欄、桌機3欄 */
+    .grid {
+      display: grid;
+      gap: 14px;
+      max-width: 980px;
+      margin: 20px auto;
+      padding: 0 14px
+    }
+
+    @media (min-width:640px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr)
+      }
+    }
+
+    @media (min-width:980px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr)
+      }
+    }
+
+    /* 卡片 */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid color-mix(in srgb, var(--text) 12%, transparent)
+    }
+
+    .card[data-bought="true"] {
+      opacity: .55
+    }
+
+    /* 頂列 */
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px
+    }
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px
+    }
+
+    .badge {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 12px
+    }
+
+    .stall-name {
+      font-weight: 800;
+      font-size: 1.1rem
+    }
+
+    .buyBtn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: color-mix(in srgb, var(--ok) 18%, var(--card));
+      color: var(--ok);
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 45%, transparent)
+    }
+
+    /* 物品清單（整塊可點、較大觸控面積） */
+    .items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 12px 0
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1a2236;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+      cursor: pointer;
+      min-height: 56px
+    }
+
+    .item input[type=checkbox] {
+      width: 22px;
+      height: 22px
+    }
+
+    .item span.txt {
+      flex: 1;
+      font-size: 1.06rem
+    }
+
+    .item img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent)
+    }
+
+    .item:has(input:checked) {
+      outline: 2px solid color-mix(in srgb, var(--ok) 65%, white);
+      outline-offset: 2px
+    }
+
+    /* 主圖（縮小顯示） */
+    .hero img {
+      width: 100%;
+      height: auto;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--text) 10%, transparent)
+    }
+
+    /* 影像檢視器 */
+    dialog#viewer {
+      border: none;
+      padding: 0;
+      background: transparent;
+      max-width: unset;
+      align-items: center;
+      justify-content: center
+    }
+
+    dialog#viewer::backdrop {
+      background: rgba(0, 0, 0, .6)
+    }
+
+    .viewer {
+      width: min(94vw, 980px);
+      height: min(86vh, 86vh);
+      background: #000;
+      border-radius: 14px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .viewer-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(255, 255, 255, .06)
+    }
+
+    .viewer-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      background: #111;
+      color: #fff
+    }
+
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+      background: #000
+    }
+
+    .viewport img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      will-change: transform;
+      transform-origin: 0 0;
+      user-select: none;
+      -webkit-user-drag: none
+    }
+  </style>
+</head>
+
+<body>
+  <main class="grid" id="grid">
+
+      <!-- D -->
+    <article class="card" data-id="D31" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">D31</span><span class="stall-name">KanArtwork</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="D31-1"><span class="txt">台灣騎樓娃包 $350</span><img src="./D31.jpg"
+            alt="台灣騎樓娃包" draggable="false"></label>
+      </div>
+      <div class="hero"><img src="./D31_1.jpg" alt="主商品"></div>
+    </article>
+
+    <!-- J -->
+    <article class="card" data-id="J23" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">J23</span><span class="stall-name">WUNDERKAMMER-好奇收藏所-</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="J23-1"><span class="txt">刺繡手環-馬利醫生 $250</span><img src="J23.png"
+            alt="刺繡手環-馬利醫生"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="J23-2"><span class="txt">預計逛攤，記錄用</span></label>
+      </div>
+      <div class="hero"><img src="J23_1.png" alt="主商品"></div>
+    </article>
+
+    <!-- O -->
+    <article class="card" data-id="O11" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">O11</span><span class="stall-name">火燒酒螺</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="O11-1"><span class="txt">林薩明信片*5(每張$50) 共$100</span><img
+            src="O11_1.jpg" alt="林薩明信片*5"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="O11-2"><span class="txt">林薩明信片組 $150</span><img src="O11.jpg"
+            alt="林薩明信片組"></label>
+      </div>
+      <div class="hero"><img src="O11_2.jpg" alt="主商品"></div>
+    </article>
+
+    <!-- Q -->
+    <article class="card" data-id="Q55" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">Q55</span><span class="stall-name">未成形工作室</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="B12-1"><span class="txt">預計逛攤，記錄用</span></label>
+      </div>
+      <div class="hero"><img src="Q55_3.png" alt="主商品"></div>
+    </article>
+
+    <article class="card" data-id="Q66" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">Q66</span><span class="stall-name">大咪咪咪叫</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q66-1"><span class="txt">白厄X萬迪 防水PVC貼紙 $80</span><img
+            src="Q66_1.jpg" alt="白厄X萬迪 防水PVC貼紙"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q66-2"><span class="txt">神厄貓貓 滴膠磁鐵 $100</span><img
+            src="Q66_3.jpg" alt="神厄貓貓 滴膠磁鐵"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q66-3"><span class="txt">黑厄貓貓 滴膠磁鐵 $100</span><img
+            src="Q66_4.jpg" alt="黑厄貓貓 滴膠磁鐵"></label>
+      </div>
+      <div class="hero"><img src="Q66_2.jpg" alt="主商品"></div>
+    </article>
+
+    <article class="card" data-id="Q72" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">Q72</span><span class="stall-name">GG++ & pier39</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q72-1"><span class="txt">新刊 厄敵 成人向漫畫 $150</span><img
+            src="Q72_1.png" alt="新刊 厄敵 成人向漫畫"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q72-2"><span class="txt">厄敵 成人哨嚮AU小說 $150</span><img
+            src="Q72_2.png" alt="厄敵 成人哨嚮AU小說"></label>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="Q72-3"><span class="txt">A5置物盒 厄敵款 $280</span><img
+            src="Q72_3.png" alt="A5置物盒 厄敵款"></label>
+      </div>
+      <div class="hero"><img src="Q72.png" alt="主商品"></div>
+    </article>
+
+    <!-- R -->
+    <article class="card" data-id="R44" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">R44</span><span class="stall-name">低調廚房</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="R44-1"><span class="txt">預計逛攤，記錄用</span></label>
+      </div>
+      <div class="hero"><img src="./R44.png" alt="主商品"></div>
+    </article>
+
+    <!-- X -->
+    <article class="card" data-id="X18" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">X18</span><span class="stall-name">在崩壞的鐵道上打排球是不是搞錯了什麼</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="x18-1"><span class="txt">厄敵新刊 《圖書館內請保持安靜》 $175</span><img src="./X18_2.png"
+            alt="厄敵新刊 《圖書館內請保持安靜》" draggable="false"></label>
+      </div>
+      <div class="hero"><img src="./X18.png" alt="主商品"></div>
+    </article>
+
+    <!-- 虎 -->
+    <article class="card" data-id="tiger13" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">虎13</span><span class="stall-name">今天沒梗</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="tiger13-1"><span class="txt">《獵魔CP團+Baby》 $175</span><img src="./虎13_1.jpg"
+            alt="獵魔CP團+Baby" draggable="false"></label>
+      </div>
+      <div class="hero"><img src="./虎13.jpg" alt="主商品"></div>
+    </article>
+
+    <article class="card" data-id="tiger35" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">虎35</span><span class="stall-name">狸子賣梨★</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="tiger35-1"><span class="txt">新刊 《厄象性》 $200</span><img src="./虎35.png"
+            alt="厄象性" draggable="false"></label>
+      </div>
+      <div class="hero"><img src="./虎35.png" alt="主商品"></div>
+    </article>
+
+    <!-- 雞 -->
+    <article class="card" data-id="chicken04" data-manual="false">
+      <div class="top">
+        <div class="left"><span class="badge">雞04</span><span class="stall-name">唱K小魚ㄐ</span></div>
+        <button class="buyBtn">✔ 全選</button>
+      </div>
+      <div class="items">
+        <label class="item"><input type="checkbox" id="chicken04-1"><span class="txt">預計逛攤，記錄用</span></label>
+      </div>
+      <div class="hero"><img src="./雞04.jpg" alt="主商品"></div>
+    </article>
+
+  </main>
+
+  <!-- 圖片檢視器（可縮放） -->
+  <dialog id="viewer">
+    <div class="viewer" role="dialog" aria-label="圖片檢視器">
+      <div class="viewer-toolbar">
+        <button class="viewer-btn" id="zoomInBtn" title="放大">＋</button>
+        <button class="viewer-btn" id="zoomOutBtn" title="縮小">－</button>
+        <button class="viewer-btn" id="resetBtn" title="重置">重置</button>
+        <button class="viewer-btn" id="closeBtn" title="關閉">關閉</button>
+      </div>
+      <div class="viewport" id="viewport">
+        <img id="viewerImg" alt="預覽圖" />
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const grid = document.getElementById('grid');
+
+    function setAll(card, checked) {
+      card.querySelectorAll('.items input[type="checkbox"]').forEach(cb => { cb.checked = checked });
+    }
+
+    function recompute(card) {
+      const total = card.querySelectorAll('.items input[type="checkbox"]').length;
+      const done = card.querySelectorAll('.items input[type="checkbox"]:checked').length;
+      const manual = card.dataset.manual === 'true';
+      const auto = (total > 0 && done === total);
+      const final = manual || auto;
+      card.dataset.bought = final ? 'true' : 'false';
+    }
+
+    function resort() {
+      const cards = [...grid.children];
+      const notBought = cards.filter(c => c.dataset.bought !== 'true');
+      const bought = cards.filter(c => c.dataset.bought === 'true');
+      for (const c of [...notBought, ...bought]) grid.appendChild(c);
+    }
+
+    function attach(card) {
+      const btn = card.querySelector('.buyBtn');
+      btn.addEventListener('click', () => {
+        const manual = card.dataset.manual === 'true';
+        const next = !manual;
+        card.dataset.manual = next ? 'true' : 'false';
+        // 同步清單：按下已購→全選；取消已購→全不選
+        setAll(card, next);
+        recompute(card); resort();
+      });
+
+      // 整塊可點（<label> 已支援）；監聽變化即可
+      card.querySelectorAll('.items input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => { recompute(card); resort(); });
+      });
+
+      recompute(card);
+    }
+
+    document.querySelectorAll('.card').forEach(attach);
+    // 影像檢視器：點擊商品圖或主圖 → 放大檢視
+    const viewer = document.getElementById('viewer');
+    const viewport = document.getElementById('viewport');
+    const vImg = document.getElementById('viewerImg');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const closeBtn = document.getElementById('closeBtn');
+
+    let scale = 1, minScale = 1, maxScale = 4, startDist = 0, startScale = 1;
+    let originX = 0, originY = 0; // 圖片左上角位移
+    let startX = 0, startY = 0;   // 拖曳起點
+    const active = new Map(); // pointerId -> {x,y}
+
+    function setTransform() {
+      vImg.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
+    }
+    function resetView() { scale = 1; originX = 0; originY = 0; setTransform(); }
+    function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+    function openViewer(src) {
+      vImg.src = src;
+      if (!viewer.open) viewer.showModal();
+      // 等待圖片載入後置中
+      vImg.onload = () => {
+        resetView();
+        // 將圖片初始放在左上，再由使用者縮放/拖移
+      };
+    }
+
+    function zoomAt(cx, cy, dz) {
+      const prev = scale; scale = clamp(scale * dz, minScale, maxScale);
+      // 以滑鼠/手指位置為中心縮放：調整位移，避免跳動
+      const rect = viewport.getBoundingClientRect();
+      const vx = cx - rect.left; const vy = cy - rect.top;
+      originX = vx - (vx - originX) * (scale / prev);
+      originY = vy - (vy - originY) * (scale / prev);
+      setTransform();
+    }
+
+    // 點擊圖片開啟
+    grid.addEventListener('click', (e) => {
+      const img = e.target.closest('.item img, .hero img');
+      if (img) {
+        e.preventDefault();      // 阻止 <label> 預設的勾選
+        e.stopPropagation();     // 阻止事件往上冒泡
+        openViewer(img.src);     // 只開啟圖片檢視器
+        return;
+      }
+    });
+
+    // 關閉
+    closeBtn.addEventListener('click', () => viewer.close());
+    viewer.addEventListener('click', (e) => { if (e.target === viewer) viewer.close(); });
+    resetBtn.addEventListener('click', resetView);
+    zoomInBtn.addEventListener('click', () => zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1.25));
+    zoomOutBtn.addEventListener('click', () => zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 0.8));
+
+    // 雙擊（桌機）/ 雙擊（行動裝置大多也支援）
+    viewport.addEventListener('dblclick', (e) => {
+      if (scale === 1) zoomAt(e.clientX, e.clientY, 2.5); else { resetView(); }
+    });
+
+    // 滑鼠滾輪縮放（桌機）
+    viewport.addEventListener('wheel', (e) => { e.preventDefault(); const dz = e.deltaY < 0 ? 1.1 : 0.9; zoomAt(e.clientX, e.clientY, dz); }, { passive: false });
+
+    // 觸控：單指拖曳、雙指捏合縮放
+    viewport.addEventListener('pointerdown', (e) => {
+      viewport.setPointerCapture(e.pointerId);
+      active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      startX = e.clientX; startY = e.clientY; startScale = scale; startDist = 0;
+    });
+    viewport.addEventListener('pointerup', (e) => { active.delete(e.pointerId); if (active.size === 0) { startDist = 0; } });
+    viewport.addEventListener('pointercancel', (e) => { active.delete(e.pointerId); if (active.size === 0) { startDist = 0; } });
+    viewport.addEventListener('pointermove', (e) => {
+      if (!active.has(e.pointerId)) return;
+      const prev = active.get(e.pointerId); active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (active.size === 1) {
+        // 拖曳
+        originX += (e.clientX - prev.x);
+        originY += (e.clientY - prev.y);
+        setTransform();
+      } else if (active.size === 2) {
+        // 捏合：計算兩點距離
+        const pts = Array.from(active.values());
+        const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (startDist === 0) { startDist = d; startScale = scale; }
+        const dz = clamp(d / startDist, 0.25, 4);
+        const rect = viewport.getBoundingClientRect();
+        const cx = (pts[0].x + pts[1].x) / 2; const cy = (pts[0].y + pts[1].y) / 2;
+        // 以兩指中點縮放
+        const prevScale = scale; scale = clamp(startScale * dz, minScale, maxScale);
+        const vx = cx - rect.left; const vy = cy - rect.top;
+        originX = vx - (vx - originX) * (scale / prevScale);
+        originY = vy - (vy - originY) * (scale / prevScale);
+        setTransform();
+      }
+    });
+
+    // 鍵盤快捷（桌機）
+    viewer.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') viewer.close();
+      if (e.key === '+') zoomInBtn.click();
+      if (e.key === '-') zoomOutBtn.click();
+      if (e.key === '0') resetBtn.click();
+    });
+  </script>
+</body>
+
+</html>
+</body>
+
+</html>

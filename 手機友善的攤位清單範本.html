@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>攤位採買清單｜手機友善</title>
+  <meta name="theme-color" content="#0ea5e9" />
+  <style>
+    :root{
+      --bg:#0b1020;             /* 深色背景（自動跟隨系統偏好） */
+      --card:#121a2c;
+      --text:#eaf2ff;
+      --muted:#aab7cf;
+      --accent:#0ea5e9;         /* 天藍 */
+      --ok:#10b981;             /* 成功 */
+      --warn:#f59e0b;           /* 提醒 */
+      --radius:18px;
+      --shadow:0 8px 24px rgba(0,0,0,.25);
+    }
+    @media (prefers-color-scheme: light) {
+      :root{
+        --bg:#f7f9fc;
+        --card:#ffffff;
+        --text:#0f172a;
+        --muted:#465268;
+        --accent:#0284c7;
+        --shadow:0 6px 18px rgba(2,8,23,.08);
+      }
+    }
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;}
+
+    /* 版頭 */
+    header{
+      position:sticky;top:0;z-index:50;
+      backdrop-filter:saturate(140%) blur(6px);
+      background:color-mix(in srgb, var(--bg) 82%, transparent);
+      border-bottom:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+    }
+    .wrap{max-width:980px;margin-inline:auto;padding:14px 14px;}
+    .title{display:flex;gap:10px;align-items:center;justify-content:space-between;}
+    .title h1{font-size:1.1rem;margin:0;font-weight:700;letter-spacing:.02em;}
+
+    /* 搜尋列 */
+    .search{
+      display:flex;gap:10px;margin-top:10px;align-items:center;
+    }
+    .search input{
+      flex:1;border:1px solid color-mix(in srgb, var(--text) 16%, transparent);
+      background:var(--card);color:var(--text);
+      border-radius:999px;padding:12px 16px;outline:none;
+    }
+    .search input::placeholder{color:color-mix(in srgb, var(--text) 45%, transparent)}
+    .chip{
+      user-select:none;white-space:nowrap;border-radius:999px;
+      padding:8px 12px;border:1px solid color-mix(in srgb, var(--text) 16%, transparent);
+      background:var(--card);font-size:.9rem;cursor:pointer;
+    }
+
+    /* 卡片格線：手機單欄、平板雙欄、桌機三欄 */
+    .grid{max-width:980px;margin:10px auto;padding:0 14px;display:grid;gap:14px;}
+    @media (min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (min-width:980px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+    /* 攤位卡片 */
+    .card{
+      background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+      border:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+      overflow:hidden;display:flex;flex-direction:column;min-height:100%;
+    }
+    .card header{position:relative;inset:auto;backdrop-filter:none;background:transparent;border:0}
+    .card-head{display:flex;gap:12px;align-items:center;padding:12px 12px 0 12px}
+    .badge{
+      background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, white));
+      color:white;padding:8px 12px;border-radius:10px;font-weight:700;letter-spacing:.02em;
+      box-shadow:0 6px 14px rgba(14,165,233,.35);
+    }
+    .stall-name{font-weight:700;font-size:1rem;line-height:1.2}
+    .sub{color:var(--muted);font-size:.9rem}
+
+    /* 主圖（商品） */
+    .hero{position:relative;margin:12px;border-radius:14px;overflow:hidden;border:1px solid color-mix(in srgb, var(--text) 10%, transparent)}
+    .hero img{width:100%;height:auto;display:block;aspect-ratio:4/3;object-fit:cover;}
+
+    /* 水平滑動縮圖（商品多張照） */
+    .thumbs{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 12px 12px}
+    .thumbs img{width:110px;height:80px;flex:0 0 auto;border-radius:12px;object-fit:cover;scroll-snap-align:start;border:1px solid color-mix(in srgb, var(--text) 10%, transparent)}
+
+    /* 摺疊區塊（DM、位置指示） */
+    details{border-top:1px dashed color-mix(in srgb, var(--text) 15%, transparent)}
+    details>summary{
+      list-style:none;cursor:pointer;padding:14px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    details>summary::-webkit-details-marker{display:none}
+    .summary-title{font-weight:700}
+    .summary-note{color:var(--muted);font-size:.9rem}
+    .panel{padding:0 14px 14px}
+    .panel img{width:100%;height:auto;border-radius:12px;margin-top:8px;border:1px solid color-mix(in srgb, var(--text) 10%, transparent)}
+
+    /* 置底操作列（快速跳回頂端） */
+    .fab{
+      position:fixed;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;
+      display:grid;place-items:center;background:var(--accent);color:white;font-weight:700;
+      border:none;box-shadow:0 10px 24px rgba(2,132,199,.45);cursor:pointer;
+    }
+
+    /* 可達性：觸控尺寸、焦點樣式 */
+    button,summary,input,.chip{min-height:44px}
+    :focus-visible{outline:3px solid color-mix(in srgb, var(--accent) 60%, white);outline-offset:2px;border-radius:10px}
+
+    /* 空狀態 */
+    .empty{display:none;place-items:center;padding:40px;color:var(--muted)}
+
+    footer{max-width:980px;margin:20px auto 60px;padding:0 14px;color:var(--muted);font-size:.9rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="title">
+        <h1>攤位採買清單</h1>
+        <span class="sub" id="count">0 項</span>
+      </div>
+      <div class="search" role="search">
+        <input id="q" type="search" placeholder="輸入攤位編號、名稱或商品關鍵字…" aria-label="搜尋攤位" />
+        <button class="chip" id="clearBtn" aria-label="清除搜尋">清除</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid" id="grid" aria-live="polite">
+    <!--
+      ▶ 依照下方 .card 範例複製貼上即可新增攤位。
+      ▶ 將 img 的 src 換成實際圖片網址（可用雲端硬碟分享連結的直連、Imgur、或自架伺服器）。
+      ▶ 建議圖片最短邊 ≥ 800px，JPG 80% 品質；或使用 WebP。
+    -->
+
+    <!-- ❶ 範例：攤位 A01 -->
+    <article class="card" data-keywords="A01 泡芙 奶油 puffs 甜點">
+      <header class="card-head">
+        <span class="badge" aria-label="攤位編號">A01</span>
+        <div>
+          <div class="stall-name">胖胖泡芙</div>
+          <div class="sub">本日必買：香草卡士達</div>
+        </div>
+      </header>
+
+      <figure class="hero">
+        <img src="https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?q=80&w=1200&auto=format&fit=crop" alt="胖胖泡芙－香草卡士達商品示意" loading="lazy" decoding="async" sizes="(max-width: 640px) 95vw, (max-width: 980px) 45vw, 30vw" />
+      </figure>
+
+      <div class="thumbs" aria-label="更多商品圖片（水平滑動瀏覽）">
+        <img src="https://images.unsplash.com/photo-1551022379-1b4af4a2b3b9?q=80&w=800&auto=format&fit=crop" alt="泡芙禮盒" loading="lazy" decoding="async" />
+        <img src="https://images.unsplash.com/photo-1541781286675-4d7b2f2cf813?q=80&w=800&auto=format&fit=crop" alt="巧克力泡芙" loading="lazy" decoding="async" />
+        <img src="https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=800&auto=format&fit=crop" alt="草莓泡芙" loading="lazy" decoding="async" />
+      </div>
+
+      <details>
+        <summary>
+          <span class="summary-title">攤位 DM／菜單</span>
+          <span class="summary-note">點開查看圖片</span>
+        </summary>
+        <div class="panel">
+          <img src="https://images.unsplash.com/photo-1526318472351-c75fcf070305?q=80&w=1600&auto=format&fit=crop" alt="胖胖泡芙 DM 圖" loading="lazy" decoding="async" />
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="summary-title">位置指示</span>
+          <span class="summary-note">展場地圖／路線圖</span>
+        </summary>
+        <div class="panel">
+          <img src="https://images.unsplash.com/photo-1502920917128-1aa500764cbd?q=80&w=1600&auto=format&fit=crop" alt="胖胖泡芙 攤位位置標示圖" loading="lazy" decoding="async" />
+        </div>
+      </details>
+    </article>
+
+    <!-- ❷ 範例：攤位 B12 -->
+    <article class="card" data-keywords="B12 烤雞 雞腿 鹹食 roasted chicken">
+      <header class="card-head">
+        <span class="badge">B12</span>
+        <div>
+          <div class="stall-name">阿吉炭烤</div>
+          <div class="sub">必買：無骨雞腿排</div>
+        </div>
+      </header>
+      <figure class="hero">
+        <img src="https://images.unsplash.com/photo-1550317138-10000687a72b?q=80&w=1200&auto=format&fit=crop" alt="阿吉炭烤－雞腿排" loading="lazy" decoding="async" />
+      </figure>
+      <div class="thumbs">
+        <img src="https://images.unsplash.com/photo-1460306855393-0410f61241c7?q=80&w=800&auto=format&fit=crop" alt="烤雞特寫" loading="lazy" decoding="async" />
+        <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800&auto=format&fit=crop" alt="烤肉拼盤" loading="lazy" decoding="async" />
+      </div>
+      <details>
+        <summary><span class="summary-title">攤位 DM／菜單</span><span class="summary-note">點開查看圖片</span></summary>
+        <div class="panel"><img src="https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=1600&auto=format&fit=crop" alt="阿吉炭烤 DM" loading="lazy" decoding="async" /></div>
+      </details>
+      <details>
+        <summary><span class="summary-title">位置指示</span><span class="summary-note">展場地圖／路線圖</span></summary>
+        <div class="panel"><img src="https://images.unsplash.com/photo-1480365300490-162f82e6d89c?q=80&w=1600&auto=format&fit=crop" alt="阿吉炭烤 攤位位置" loading="lazy" decoding="async" /></div>
+      </details>
+    </article>
+
+  </main>
+
+  <div class="empty" id="empty">找不到符合條件的攤位</div>
+
+  <footer class="wrap">
+    <p>小撇步：
+      1) 圖片可左右滑動；
+      2) 點開「攤位 DM」與「位置指示」可節省捲動；
+      3) 若在會場網路不穩，建議先在家把頁面開過一次以便快取。
+    </p>
+  </footer>
+
+  <button class="fab" id="topBtn" title="回到頂部" aria-label="回到頂部">↑</button>
+
+  <dialog id="viewer" style="border:none;border-radius:16px;padding:0;max-width:min(92vw,980px)">
+    <img id="viewerImg" alt="圖片預覽" style="width:100%;height:auto;display:block" />
+  </dialog>
+
+  <script>
+    const q = document.getElementById('q');
+    const clearBtn = document.getElementById('clearBtn');
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    const count = document.getElementById('count');
+    const topBtn = document.getElementById('topBtn');
+    const viewer = document.getElementById('viewer');
+    const viewerImg = document.getElementById('viewerImg');
+
+    // 即時搜尋（名稱、編號、關鍵字）
+    function filter() {
+      const term = q.value.trim().toLowerCase();
+      let visible = 0;
+      for (const card of grid.querySelectorAll('.card')) {
+        const text = (card.querySelector('.stall-name')?.textContent + ' ' + card.dataset.keywords).toLowerCase();
+        const hit = !term || text.includes(term);
+        card.style.display = hit ? '' : 'none';
+        visible += hit ? 1 : 0;
+      }
+      empty.style.display = visible ? 'none' : 'grid';
+      count.textContent = visible + ' 項';
+    }
+    q.addEventListener('input', filter);
+    clearBtn.addEventListener('click', () => { q.value=''; filter(); q.focus(); });
+
+    // 置頂按鈕
+    topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+
+    // 縮圖點擊 → 簡易全螢幕預覽（使用 <dialog>）
+    document.addEventListener('click', e => {
+      const t = e.target;
+      if (t.tagName === 'IMG' && (t.closest('.hero') || t.closest('.thumbs') || t.closest('.panel'))) {
+        viewerImg.src = t.src;
+        if (!viewer.open) viewer.showModal();
+      }
+    });
+    viewer.addEventListener('click', e => { if (e.target === viewer) viewer.close(); });
+
+    // 初始計數
+    filter();
+  </script>
+</body>
+</html>
