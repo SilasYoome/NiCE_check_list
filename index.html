@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>攤位採買清單｜手機友善</title>
+  <title>NiCE購買清單</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -173,15 +173,18 @@
       padding: 0;
       background: transparent;
       max-width: unset;
+    }
+
+    dialog#viewer[open] {
       display: flex;
       align-items: center;
-      justify-content: center
+      justify-content: center;
     }
 
     dialog#viewer .stage {
       position: relative;
       width: 100vw;
-      height: 100dvh;
+      height: 100vh;
       overflow: hidden;
       /* 限制拖移邊界在視窗內 */
       display: flex;
@@ -541,6 +544,19 @@
       setTransform();
     }
 
+    function closeViewer() {
+      // 關閉對話框
+      if (viewer.open) viewer.close();
+
+      // 清理狀態，避免下次殘留
+      vImg.src = '';
+      vImg.onload = null;
+      scale = 1; minScale = 1; maxScale = 4;
+      originX = 0; originY = 0;
+      startX = 0; startY = 0; startScale = 1; startDist = 0;
+      active.clear();
+    }
+
     // 點擊圖片開啟
     grid.addEventListener('click', (e) => {
       const img = e.target.closest('.item img, .hero img');
@@ -552,9 +568,11 @@
       }
     });
 
+
     // 關閉
-    closeBtn.addEventListener('click', () => viewer.close());
-    viewer.addEventListener('click', (e) => { if (e.target === viewer) viewer.close(); });
+    closeBtn.addEventListener('click', closeViewer);
+    viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
+    viewer.addEventListener('close', closeViewer);
     resetBtn.addEventListener('click', resetView);
     zoomInBtn.addEventListener('click', () => {
       zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1.25);
